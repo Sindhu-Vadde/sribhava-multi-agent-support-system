@@ -1,0 +1,102 @@
+[
+  {
+    "message": "want assistance notifying of issues with a registration",
+    "true_category": "ACCOUNT",
+    "true_intent": "registration_problems"
+  },
+  {
+    "message": "i want assistance checking the termination penalties",
+    "true_category": "CANCEL",
+    "true_intent": "check_cancellation_fee"
+  },
+  {
+    "message": "i need assistance to cancel order {{Order Number}}",
+    "true_category": "ORDER",
+    "true_intent": "cancel_order"
+  },
+  {
+    "message": "i have to use the {{Account Type}} account will ya help me",
+    "true_category": "ACCOUNT",
+    "true_intent": "switch_account"
+  },
+  {
+    "message": "what do i have to do to speak with somebody",
+    "true_category": "CONTACT",
+    "true_intent": "contact_human_agent"
+  },
+  {
+    "message": "what do I need to do to call customer assistance?",
+    "true_category": "CONTACT",
+    "true_intent": "contact_customer_service"
+  },
+  {
+    "message": "I have to file a customer claim",
+    "true_category": "FEEDBACK",
+    "true_intent": "complaint"
+  },
+  {
+    "message": "I have  to locate my bill #00108, help me",
+    "true_category": "INVOICE",
+    "true_intent": "check_invoice"
+  },
+  {
+    "message": "i dont know what to do to change to the {{Account Type}} account",
+    "true_category": "ACCOUNT",
+    "true_intent": "switch_account"
+  },
+  {
+    "message": "I cannot find the early exit charge",
+    "true_category": "CANCEL",
+    "true_intent": "check_cancellation_fee"
+  },
+  {
+    "message": "how to submit my feedback about your company?",
+    "true_category": "FEEDBACK",
+    "true_intent": "review"
+  },
+  {
+    "message": "is it possible to switch to the {{Account Category}} account",
+    "true_category": "ACCOUNT",
+    "true_intent": "switch_account"
+  },
+  {
+    "message": "I want to know more about the subscription to the newsletter",
+    "true_category": "SUBSCRIPTION",
+    "true_intent": "newsletter_subscription"
+  },
+  {
+    "message": "want assistance to change my delivery address",
+    "true_category": "SHIPPING",
+    "true_intent": "change_shipping_address"
+  },
+  {
+    "message": "assistance buying some of your article",
+    "true_category": "ORDER",
+    "true_intent": "place_order"
+  },
+  {
+    "message": "i have to see how soon can i expect the shipmrnt i need help",
+    "true_category": "DELIVERY",
+    "true_intent": "delivery_period"
+  },
+  {
+    "message": "I want to switch an article of purchase {{Order Number}}",
+    "true_category": "ORDER",
+    "true_intent": "change_order"
+  },
+  {
+    "message": "I have problems with cancelling purchase {{Order Number}}",
+    "true_category": "ORDER",
+    "true_intent": "cancel_order"
+  },
+  {
+    "message": "see the early exit penalties",
+    "true_category": "CANCEL",
+    "true_intent": "check_cancellation_fee"
+  },
+  {
+    "message": "help lodging a consumer claim",
+    "true_category": "FEEDBACK",
+    "true_intent": "complaint"
+  }
+]
