@@ -10,6 +10,9 @@ CREATE TABLE IF NOT EXISTS traces (
     agent_name TEXT,
     decision TEXT,
     reasoning TEXT,
+    latency_ms INTEGER,
+    input_tokens INTEGER,
+    output_tokens INTEGER,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 """)

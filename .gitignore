@@ -6,3 +6,5 @@ chroma_db/
 tickets.db
 policy_embeddings.pkl
 eval_results.json
+tickets_backup.db
+run_results.csv

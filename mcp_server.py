@@ -1,8 +1,15 @@
+import time
+T0 = time.perf_counter()
+
+import sys
+import sqlite3
 from mcp.server.mcpserver import MCPServer
 import chromadb
 from chromadb.config import Settings
 from sentence_transformers import SentenceTransformer
-import sys 
+
+print(f"[startup] imports finished: {time.perf_counter() - T0:.1f}s", file=sys.stderr)
+
 mcp = MCPServer("sribhava-support-tools")
 
 client = chromadb.PersistentClient(
@@ -13,8 +20,13 @@ client = chromadb.PersistentClient(
     )
 )
 collection = client.get_or_create_collection(name="sribhava_policies")
-print("Policy collection loaded with", collection.count(), "items", file=sys.stderr)
+
+print(f"[startup] chromadb ready: {time.perf_counter() - T0:.1f}s", file=sys.stderr)
+
 model = SentenceTransformer("all-MiniLM-L6-v2")
+
+print(f"[startup] model loaded: {time.perf_counter() - T0:.1f}s", file=sys.stderr)
+
 
 @mcp.tool()
 def search_policy(query: str) -> str:
@@ -28,12 +40,9 @@ def search_policy(query: str) -> str:
     return f"Policy: {title}\n{content}"
 
 
-
-import sqlite3
-
 @mcp.tool()
 def update_ticket(ticket_id: int, status: str, agent_reasoning: str) -> str:
-    """Update a support ticket's status and record the reasoning behind the decision. Status should be one of: 'resolved', 'pending_human_review'."""
+    """Update a support ticket's status and record the reasoning behind the decision. Status should be one of: 'auto_resolved', 'pending_human_review'."""
     conn = sqlite3.connect("tickets.db")
     cursor = conn.cursor()
 
@@ -61,7 +70,6 @@ def escalate_to_human(ticket_id: int, reason: str) -> str:
         (reason, ticket_id)
     )
     conn.commit()
-
     rows_changed = cursor.rowcount
     conn.close()
 
@@ -71,13 +79,14 @@ def escalate_to_human(ticket_id: int, reason: str) -> str:
 
 
 if __name__ == "__main__":
-    import sys
+    # `python mcp_server.py test` runs the three tools directly once, then exits.
+    # `python mcp_server.py` starts the real, long-running server.
     if len(sys.argv) > 1 and sys.argv[1] == "test":
         print("\n--- Testing search_policy ---")
         print(search_policy("I want to cancel my order"))
 
         print("\n--- Testing update_ticket ---")
-        print(update_ticket(1, "resolved", "Order was within the 60-minute cancellation window, auto-approved."))
+        print(update_ticket(1, "auto_resolved", "Order was within the 60-minute cancellation window, auto-approved."))
 
         print("\n--- Testing escalate_to_human ---")
         print(escalate_to_human(1, "Refund amount exceeds $300 threshold, requires manual review."))

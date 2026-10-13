@@ -75,7 +75,7 @@ for ticket in pending_tickets:
             if st.button("✅ Approve", key=f"approve_{ticket_id}"):
                 conn = sqlite3.connect("tickets.db")
                 cursor = conn.cursor()
-                cursor.execute("UPDATE tickets SET status = 'resolved' WHERE id = ?", (ticket_id,))
+                cursor.execute("UPDATE tickets SET status = 'human_approved' WHERE id = ?", (ticket_id,))
                 conn.commit()
                 conn.close()
                 st.success(f"Ticket #{ticket_id} approved and resolved.")

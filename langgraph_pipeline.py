@@ -1,19 +1,17 @@
 import asyncio
 import sqlite3
+import time
 from typing import TypedDict
 from mcp import ClientSession
 from mcp.client.stdio import stdio_client, StdioServerParameters
 from langgraph.graph import StateGraph, END
-from trace_logger import create_ticket
+from trace_logger import create_ticket, log_trace
 from classifier_agent import classify_ticket
 from policy_agent import policy_agent
 from action_agent import decide_action, execute_decision
 from critic_agent import critic_agent
 
-server_params = StdioServerParameters(
-    command="python",
-    args=["mcp_server.py"]
-)
+server_params = StdioServerParameters(command="python", args=["mcp_server.py"])
 
 
 class PipelineState(TypedDict):
@@ -29,32 +27,36 @@ class PipelineState(TypedDict):
 
 def build_graph(session):
     def classify_node(state):
-        classification = classify_ticket(state["message"], ticket_id=state["ticket_id"])
-        return {"classification": classification}
+        return {"classification": classify_ticket(state["message"], ticket_id=state["ticket_id"])}
 
     async def policy_node(state):
-        reasoning = await policy_agent(state["message"], state["classification"], session, ticket_id=state["ticket_id"])
+        reasoning = await policy_agent(
+            state["message"], state["classification"], session, ticket_id=state["ticket_id"]
+        )
         return {"reasoning": reasoning}
 
     def action_node(state):
-        proposed = decide_action(state["message"], state["classification"], state["reasoning"], ticket_id=state["ticket_id"])
-        return {"proposed_decision": proposed}
+        return {"proposed_decision": decide_action(
+            state["message"], state["classification"], state["reasoning"], ticket_id=state["ticket_id"]
+        )}
 
     def critic_node(state):
-        review = critic_agent(state["message"], state["reasoning"], state["proposed_decision"], ticket_id=state["ticket_id"])
-        return {"critic_review": review}
+        return {"critic_review": critic_agent(
+            state["message"], state["reasoning"], state["proposed_decision"], ticket_id=state["ticket_id"]
+        )}
 
     async def execute_node(state):
         if state["critic_review"]["approved"]:
             final_decision = state["proposed_decision"]
         else:
-            final_decision = {"decision": "escalate", "reasoning": f"Overridden by Critic Agent: {state['critic_review']['reasoning']}"}
-
+            final_decision = {
+                "decision": "escalate",
+                "reasoning": f"Overridden by Critic Agent: {state['critic_review']['reasoning']}",
+            }
         result = await execute_decision(state["ticket_id"], final_decision, session)
         return {"final_decision": final_decision, "result": result}
 
     graph = StateGraph(PipelineState)
-
     graph.add_node("classify", classify_node)
     graph.add_node("policy", policy_node)
     graph.add_node("action", action_node)
@@ -71,31 +73,31 @@ def build_graph(session):
     return graph.compile()
 
 
-async def run_full_pipeline(message: str):
+async def run_ticket(message: str, session):
+    """Processes one ticket using an MCP session that is already open."""
+    pipeline_start = time.perf_counter()
     ticket_id = create_ticket(message)
     print(f"\n=== Created ticket #{ticket_id} ===")
 
     try:
-        async with stdio_client(server_params) as (read, write):
-            async with ClientSession(read, write) as session:
-                await session.initialize()
+        app = build_graph(session)
+        final_state = await app.ainvoke({"message": message, "ticket_id": ticket_id})
 
-                app = build_graph(session)
+        print("\nClassification:", final_state["classification"])
+        print("\nPolicy reasoning:", final_state["reasoning"])
+        print("\nProposed decision:", final_state["proposed_decision"])
+        print("\nCritic review:", final_state["critic_review"])
+        print("\nFinal outcome:", final_state["result"])
 
-                initial_state = {"message": message, "ticket_id": ticket_id}
-                final_state = await app.ainvoke(initial_state)
-
-                print("\nClassification:", final_state["classification"])
-                print("\nPolicy reasoning:", final_state["reasoning"])
-                print("\nProposed decision:", final_state["proposed_decision"])
-                print("\nCritic review:", final_state["critic_review"])
-                print("\nFinal outcome:", final_state["result"])
-
+        total_ms = int((time.perf_counter() - pipeline_start) * 1000)
+        log_trace(ticket_id, "Pipeline", "completed",
+                  "Time from ticket created to finished, with the MCP server already running",
+                  latency_ms=total_ms)
     except Exception as e:
         print(f"\nPipeline failed for ticket #{ticket_id}: {e}")
         conn = sqlite3.connect("tickets.db")
-        cursor = conn.cursor()
-        cursor.execute("UPDATE tickets SET status = 'error' WHERE id = ?", (ticket_id,))
+        cur = conn.cursor()
+        cur.execute("UPDATE tickets SET status = 'error' WHERE id = ?", (ticket_id,))
         conn.commit()
         conn.close()
         raise
@@ -103,6 +105,21 @@ async def run_full_pipeline(message: str):
     return ticket_id
 
 
+async def run_full_pipeline(message: str):
+    """Starts its own MCP server for this one ticket, then processes it."""
+    startup_start = time.perf_counter()
+    async with stdio_client(server_params) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            startup_ms = int((time.perf_counter() - startup_start) * 1000)
+            print(f"\nMCP server started in {startup_ms} ms")
+
+            ticket_id = await run_ticket(message, session)
+            log_trace(ticket_id, "MCP startup", "server_ready",
+                      "Time to start the MCP server and open the session",
+                      latency_ms=startup_ms)
+    return ticket_id
+
+
 if __name__ == "__main__":
-    test_message = "I want a refund of $250 for my damaged item"
-    asyncio.run(run_full_pipeline(test_message))
+    asyncio.run(run_full_pipeline("I want a refund of $250 for my damaged item"))

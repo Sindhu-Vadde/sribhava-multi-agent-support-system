@@ -1,8 +1,9 @@
 import os
+import time
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
-from trace_logger import log_trace
+from trace_logger import log_trace, get_usage
 
 load_dotenv()
 gemini_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
@@ -28,6 +29,8 @@ critic_decision_function = {
 
 
 def critic_agent(message: str, policy_reasoning: str, proposed_decision: dict, ticket_id: int = None) -> dict:
+    start = time.perf_counter()
+
     tools = types.Tool(function_declarations=[critic_decision_function])
     config = types.GenerateContentConfig(tools=[tools])
 
@@ -49,25 +52,18 @@ Your job is specifically to catch cases where 'auto_resolve' was chosen but shou
     function_call = response.candidates[0].content.parts[0].function_call
     review_result = dict(function_call.args)
 
+    latency_ms = int((time.perf_counter() - start) * 1000)
+    input_tokens, output_tokens = get_usage(response)
+
     if ticket_id is not None:
-        log_trace(ticket_id, "Critic", str(review_result["approved"]), review_result["reasoning"])
+        log_trace(
+            ticket_id,
+            "Critic",
+            str(review_result["approved"]),
+            review_result["reasoning"],
+            latency_ms=latency_ms,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens
+        )
 
     return review_result
-
-
-if __name__ == "__main__":
-    from classifier_agent import classify_ticket
-    from policy_agent import policy_agent
-
-    test_message = "I want a refund of $250 for my damaged item"
-    classification = classify_ticket(test_message)
-    print("Classification:", classification)
-
-    reasoning = policy_agent(test_message, classification)
-    print("\nPolicy reasoning:", reasoning)
-
-    fake_proposed_decision = {"decision": "auto_resolve", "reasoning": "Refund amount is under $300, auto-resolving."}
-    print("\nProposed decision:", fake_proposed_decision)
-
-    review = critic_agent(test_message, reasoning, fake_proposed_decision)
-    print("\nCritic review:", review)

@@ -1,8 +1,9 @@
 import os
+import time
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
-from trace_logger import log_trace
+from trace_logger import log_trace, get_usage
 
 load_dotenv()
 gemini_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
@@ -29,6 +30,9 @@ decide_action_function = {
 
 
 def decide_action(message: str, classification: dict, policy_reasoning: str, ticket_id: int = None) -> dict:
+    """Decides only. Nothing is executed here, so the Critic Agent can review first."""
+    start = time.perf_counter()
+
     tools = types.Tool(function_declarations=[decide_action_function])
     config = types.GenerateContentConfig(tools=[tools])
 
@@ -51,13 +55,25 @@ IMPORTANT: If the message does not contain enough specific information (such as 
     function_call = response.candidates[0].content.parts[0].function_call
     decision_result = dict(function_call.args)
 
+    latency_ms = int((time.perf_counter() - start) * 1000)
+    input_tokens, output_tokens = get_usage(response)
+
     if ticket_id is not None:
-        log_trace(ticket_id, "Action", decision_result["decision"], decision_result["reasoning"])
+        log_trace(
+            ticket_id,
+            "Action",
+            decision_result["decision"],
+            decision_result["reasoning"],
+            latency_ms=latency_ms,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens
+        )
 
     return decision_result
 
 
 async def execute_decision(ticket_id: int, decision_result: dict, session) -> str:
+    """Carries out an already-approved decision through the shared MCP session."""
     if decision_result["decision"] == "escalate":
         result = await session.call_tool(
             "escalate_to_human",
@@ -66,7 +82,7 @@ async def execute_decision(ticket_id: int, decision_result: dict, session) -> st
     else:
         result = await session.call_tool(
             "update_ticket",
-            {"ticket_id": ticket_id, "status": "resolved", "agent_reasoning": decision_result["reasoning"]}
+            {"ticket_id": ticket_id, "status": "auto_resolved", "agent_reasoning": decision_result["reasoning"]}
         )
 
     return result.content[0].text

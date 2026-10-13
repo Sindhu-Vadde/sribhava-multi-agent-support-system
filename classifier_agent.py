@@ -4,7 +4,8 @@ import sqlite3
 from google import genai
 from google.genai import types
 from dotenv import load_dotenv
-from trace_logger import log_trace
+import time
+from trace_logger import log_trace, get_usage
 
 load_dotenv()
 gemini_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
@@ -33,6 +34,7 @@ classify_ticket_function = {
 }
 
 def classify_ticket(message: str, ticket_id: int = None) -> dict:
+    start = time.perf_counter()
     tools = types.Tool(function_declarations=[classify_ticket_function])
     config = types.GenerateContentConfig(tools=[tools])
 
@@ -55,10 +57,19 @@ Customer message: {message}"""
 
     function_call = response.candidates[0].content.parts[0].function_call
     result = dict(function_call.args)
+    latency_ms = int((time.perf_counter() - start) * 1000)
+    input_tokens, output_tokens = get_usage(response)
 
     if ticket_id is not None:
-        log_trace(ticket_id, "Classifier", f"{result['category']}/{result['intent']}", result['reasoning'])
-
+        log_trace(
+            ticket_id,
+            "Classifier",
+            f"{result['category']}/{result['intent']}",
+            result['reasoning'],
+            latency_ms=latency_ms,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens
+        )
         conn = sqlite3.connect("tickets.db")
         cursor = conn.cursor()
         cursor.execute(
