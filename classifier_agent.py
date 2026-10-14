@@ -6,6 +6,7 @@ from google.genai import types
 from dotenv import load_dotenv
 import time
 from trace_logger import log_trace, get_usage
+from gemini_call import generate_with_retry
 
 load_dotenv()
 gemini_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
@@ -50,7 +51,8 @@ Important distinctions between similar categories:
 
 Customer message: {message}"""
 
-    response = gemini_client.models.generate_content(
+    response = generate_with_retry(
+        gemini_client,
         model="gemini-3.5-flash-lite",
         contents=prompt,
         config=config

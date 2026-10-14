@@ -1,8 +1,10 @@
+import asyncio
 import os
 import time
 from google import genai
 from dotenv import load_dotenv
 from trace_logger import log_trace, get_usage
+from gemini_call import generate_with_retry
 
 load_dotenv()
 gemini_client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
@@ -32,9 +34,13 @@ The relevant policy found is:
 
 Explain, in 2-3 sentences, what this policy means for this specific ticket, and whether any escalation rule applies. Use any specific details present in the customer's original message (such as dollar amounts, item conditions, or reasons given) to make as concrete a determination as possible."""
 
-    response = gemini_client.models.generate_content(
+    # Run in a separate thread, so a retry wait never freezes the whole API.
+    response = await asyncio.to_thread(
+        generate_with_retry,
+        gemini_client,
         model="gemini-3.5-flash-lite",
-        contents=prompt
+        contents=prompt,
+        config=None
     )
 
     result_text = response.text
