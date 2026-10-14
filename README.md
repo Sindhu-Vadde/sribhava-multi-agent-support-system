@@ -216,4 +216,4 @@ On every push, GitHub Actions runs the tests and builds the Docker image (about 
 
 ## Author
 
-Sindhu Vadde · [add LinkedIn / email]
+Sindhu Vadde · [www.linkedin.com/in/sindhu-vadde-aa9b1a294 / sindhoori.vadde03@gmail.com]
