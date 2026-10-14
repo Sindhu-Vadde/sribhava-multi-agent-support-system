@@ -18,11 +18,11 @@ classify_ticket_function = {
         "properties": {
             "category": {
                 "type": "string",
-                "description": "The broad category of the ticket, e.g. ORDER, REFUND, ACCOUNT, PAYMENT, INVOICE, SHIPPING, DELIVERY, SUBSCRIPTION, CONTACT, FEEDBACK"
+                "description": "The broad category of the ticket, e.g. ORDER, REFUND, ACCOUNT, PAYMENT, INVOICE, SHIPPING, DELIVERY, SUBSCRIPTION, CONTACT, FEEDBACK. Use UNCLASSIFIABLE only if the message contains no real support request."
             },
             "intent": {
                 "type": "string",
-                "description": "The specific intent within that category, e.g. cancel_order, check_refund_policy"
+                "description": "The specific intent within that category, e.g. cancel_order, check_refund_policy. Use unclassifiable if the category is UNCLASSIFIABLE."
             },
             "reasoning": {
                 "type": "string",
@@ -45,6 +45,7 @@ Important distinctions between similar categories:
 - SUBSCRIPTION is for managing an active subscription (pausing, upgrading, downgrading, newsletter preferences) — not questions about the cost of leaving it.
 - DELIVERY is about the shipment's actual transit status (where is it, when will it arrive, did it arrive) — SHIPPING is about shipping methods, costs, or address changes before dispatch.
 - FEEDBACK is for complaints, reviews, or opinions about the company — CONTACT is for questions about HOW to reach support, not about lodging a complaint itself.
+- UNCLASSIFIABLE is for messages that contain no real customer support request: random characters or keyboard mashing, empty or meaningless text, or requests that have nothing to do with Sribhava Retail (for example asking for restaurant recommendations). Use category UNCLASSIFIABLE and intent unclassifiable. Never pick another category just to give an answer. A real but vague support question is NOT unclassifiable: pick the closest category for it.
 
 
 Customer message: {message}"""
@@ -86,7 +87,8 @@ if __name__ == "__main__":
     test_messages = [
         "I want to cancel my order, it hasn't shipped yet",
         "My package never arrived and it's been 2 weeks",
-        "Can I pause my subscription for a few months?"
+        "Can I pause my subscription for a few months?",
+        "asdf qwerty zxcv"
     ]
 
     for msg in test_messages:

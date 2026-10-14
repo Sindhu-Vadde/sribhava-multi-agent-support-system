@@ -25,6 +25,14 @@ class PipelineState(TypedDict):
     result: str
 
 
+def route_after_classify(state):
+    """A fixed rule, not a model decision: unclassifiable tickets always go to a human."""
+    category = str(state["classification"].get("category", "")).upper()
+    if category == "UNCLASSIFIABLE":
+        return "escalate_unclassified"
+    return "policy"
+
+
 def build_graph(session):
     def classify_node(state):
         return {"classification": classify_ticket(state["message"], ticket_id=state["ticket_id"])}
@@ -56,19 +64,34 @@ def build_graph(session):
         result = await execute_decision(state["ticket_id"], final_decision, session)
         return {"final_decision": final_decision, "result": result}
 
+    async def escalate_unclassified_node(state):
+        final_decision = {
+            "decision": "escalate",
+            "reasoning": "Escalated by rule: the Classifier could not find a real support request in this message.",
+        }
+        log_trace(state["ticket_id"], "Rule", "escalate", final_decision["reasoning"])
+        result = await execute_decision(state["ticket_id"], final_decision, session)
+        return {"final_decision": final_decision, "result": result}
+
     graph = StateGraph(PipelineState)
     graph.add_node("classify", classify_node)
     graph.add_node("policy", policy_node)
     graph.add_node("action", action_node)
     graph.add_node("critic", critic_node)
     graph.add_node("execute", execute_node)
+    graph.add_node("escalate_unclassified", escalate_unclassified_node)
 
     graph.set_entry_point("classify")
-    graph.add_edge("classify", "policy")
+    graph.add_conditional_edges(
+        "classify",
+        route_after_classify,
+        {"policy": "policy", "escalate_unclassified": "escalate_unclassified"},
+    )
     graph.add_edge("policy", "action")
     graph.add_edge("action", "critic")
     graph.add_edge("critic", "execute")
     graph.add_edge("execute", END)
+    graph.add_edge("escalate_unclassified", END)
 
     return graph.compile()
 
@@ -83,11 +106,14 @@ async def run_ticket(message: str, session):
         app = build_graph(session)
         final_state = await app.ainvoke({"message": message, "ticket_id": ticket_id})
 
-        print("\nClassification:", final_state["classification"])
-        print("\nPolicy reasoning:", final_state["reasoning"])
-        print("\nProposed decision:", final_state["proposed_decision"])
-        print("\nCritic review:", final_state["critic_review"])
-        print("\nFinal outcome:", final_state["result"])
+        print("\nClassification:", final_state.get("classification"))
+        if "reasoning" in final_state:
+            print("\nPolicy reasoning:", final_state["reasoning"])
+            print("\nProposed decision:", final_state.get("proposed_decision"))
+            print("\nCritic review:", final_state.get("critic_review"))
+        else:
+            print("\n(Escalated by rule - the other agents were skipped.)")
+        print("\nFinal outcome:", final_state.get("result"))
 
         total_ms = int((time.perf_counter() - pipeline_start) * 1000)
         log_trace(ticket_id, "Pipeline", "completed",
@@ -122,4 +148,4 @@ async def run_full_pipeline(message: str):
 
 
 if __name__ == "__main__":
-    asyncio.run(run_full_pipeline("I want a refund of $250 for my damaged item"))
+    asyncio.run(run_full_pipeline("asdf qwerty zxcv"))
