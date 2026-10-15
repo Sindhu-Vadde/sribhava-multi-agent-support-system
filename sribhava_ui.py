@@ -7,6 +7,20 @@ import streamlit as st
 
 st.set_page_config(page_title="Sribhava Retail", layout="wide")
 
+import os
+import secrets
+
+_required = os.environ.get("DASHBOARD_PASSWORD")
+if _required and not st.session_state.get("signed_in"):
+    _typed = st.text_input("Password", type="password")
+    if _typed:
+        if secrets.compare_digest(_typed.encode(), _required.encode()):
+            st.session_state["signed_in"] = True
+            st.rerun()
+        else:
+            st.error("Wrong password")
+    st.stop()
+
 st.markdown("""
 <style>
 .stApp {
