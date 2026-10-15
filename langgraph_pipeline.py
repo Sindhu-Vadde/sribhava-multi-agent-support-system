@@ -103,12 +103,12 @@ def build_graph(session):
 def fail_over_to_human(ticket_id: int, reason: str):
     """Sends a ticket to the human review queue without using the MCP server.
     Writes straight to the database, so it still works if the tool server is stuck.
-    Only touches a ticket that is still 'open', so a finished ticket is never overwritten."""
+    Only touches a ticket that is still 'open' or 'error', so a finished ticket is never overwritten."""
     conn = sqlite3.connect("tickets.db")
     cur = conn.cursor()
     cur.execute(
         "UPDATE tickets SET status = 'pending_human_review', agent_reasoning = ? "
-        "WHERE id = ? AND status = 'open'",
+        "WHERE id = ? AND status IN ('open', 'error')",
         (reason, ticket_id),
     )
     changed = cur.rowcount
@@ -151,11 +151,12 @@ async def run_ticket(message: str, session):
             process_ticket(message, session, ticket_id),
             timeout=PIPELINE_TIMEOUT_SECONDS,
         )
-    except asyncio.TimeoutError:
+    except asyncio.TimeoutError as e:
         reason = (f"System failure: processing took longer than "
                   f"{PIPELINE_TIMEOUT_SECONDS:g} seconds, so a person needs to handle this ticket.")
         print(f"\nTicket #{ticket_id} timed out - sent to a human")
         fail_over_to_human(ticket_id, reason)
+        e.ticket_id = ticket_id
         raise
     except Exception as e:
         print(f"\nPipeline failed for ticket #{ticket_id}: {e}")
@@ -164,6 +165,7 @@ async def run_ticket(message: str, session):
         cur.execute("UPDATE tickets SET status = 'error' WHERE id = ?", (ticket_id,))
         conn.commit()
         conn.close()
+        e.ticket_id = ticket_id
         raise
 
     return ticket_id
