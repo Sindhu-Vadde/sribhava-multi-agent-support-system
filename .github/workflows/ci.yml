@@ -21,7 +21,7 @@ jobs:
           cache: pip
 
       - name: Install test dependencies
-        run: pip install pytest python-dotenv google-genai mcp langgraph
+        run: pip install pytest python-dotenv google-genai mcp langgraph fastapi httpx
 
       - name: Run tests
         run: python -m pytest -v
