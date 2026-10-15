@@ -1,4 +1,5 @@
 import csv
+import os
 import random
 import sqlite3
 import threading
@@ -6,7 +7,14 @@ import time
 import requests
 import sys
 
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 URL = "http://127.0.0.1:8000/submit_ticket"
+HEADERS = {"X-API-Key": os.environ.get("API_KEY", "")}
 BATCH_SIZE = 2
 PAUSE_SECONDS = 40
 FIRST_ID = 30
@@ -82,7 +90,7 @@ outcomes = []
 
 def send(message):
     try:
-        r = requests.post(URL, json={"message": message}, timeout=300)
+        r = requests.post(URL, json={"message": message}, headers=HEADERS, timeout=300)
         outcomes.append(r.status_code == 200)
     except Exception:
         outcomes.append(False)
