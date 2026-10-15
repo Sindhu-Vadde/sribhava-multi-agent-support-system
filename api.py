@@ -16,7 +16,7 @@ except ImportError:
 
 from langgraph_pipeline import fail_over_to_human, run_ticket, server_params
 from mcp_supervisor import McpSupervisor
-from trace_logger import create_ticket
+from trace_logger import create_ticket, init_db
 
 WAIT_FOR_TOOL_SERVER_SECONDS = 20
 
@@ -33,6 +33,7 @@ def require_api_key(key: str | None = Security(api_key_header)):
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    init_db()
     supervisor = McpSupervisor(server_params)
     await supervisor.start()
     app.state.supervisor = supervisor

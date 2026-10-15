@@ -4,3 +4,5 @@ __pycache__/
 *.pyc
 .git/
 tickets.db
+.env
+policy_embeddings.pkl
