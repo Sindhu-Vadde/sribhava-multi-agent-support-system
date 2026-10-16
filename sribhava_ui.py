@@ -316,7 +316,7 @@ ESCALATED_STATUSES = ("pending_human_review", "human_approved", "rejected")
 # Tickets before this id were run when MCP startup was counted inside "Pipeline",
 # so their times are not representative. Checked against the database: #11-#17 took 28-110 s,
 # #18 onward take about 4-8 s.
-FIRST_FAST_TICKET = 18
+FIRST_FAST_TICKET = int(os.environ.get("FIRST_FAST_TICKET", "18"))
 
 # Only count timing and token rows for tickets that still exist in the tickets table.
 TRACES_QUERY = (
@@ -586,10 +586,11 @@ def performance():
     traces = load(TRACES_QUERY)
     traces = traces[traces["ticket_id"].notna() & (traces["ticket_id"] >= FIRST_FAST_TICKET)]
 
-    st.caption(
-        f"Only tickets from #{FIRST_FAST_TICKET} onward are shown: earlier tickets were run with an "
-        "older version that counted server start-up inside every ticket."
-    )
+    if FIRST_FAST_TICKET > 1:
+        st.caption(
+            f"Only tickets from #{FIRST_FAST_TICKET} onward are shown: earlier tickets were run with an "
+            "older version that counted server start-up inside every ticket."
+        )
 
     agent_names = list(AGENT_COLORS.keys())
 
