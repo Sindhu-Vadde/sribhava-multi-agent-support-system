@@ -34,3 +34,25 @@ jobs:
 
       - name: Build the Docker image
         run: docker build -t sribhava .
+
+  publish-image:
+    # Runs only after the tests and the build pass, and only for pushes to main
+    # (never for pull requests). Publishes the image to GitHub's container registry.
+    runs-on: ubuntu-latest
+    needs: [tests, docker-build]
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to the GitHub container registry
+        run: echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+
+      - name: Build and push the image
+        run: |
+          IMAGE="ghcr.io/$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')"
+          docker build -t "$IMAGE:latest" -t "$IMAGE:${{ github.sha }}" .
+          docker push "$IMAGE:latest"
+          docker push "$IMAGE:${{ github.sha }}"
